@@ -73,6 +73,9 @@ async function run() {
     const contactCollection = client
       .db("Dhaka_Bus_Ticket")
       .collection("contactCollection");
+        const billsCollection = client
+      .db("Dhaka_Bus_Ticket")
+      .collection("billsCollection");
 
     // jwt
     app.post("/jwt", (req, res) => {
@@ -97,6 +100,12 @@ async function run() {
       }
       next();
     };
+
+
+    // bills for user
+
+   
+ 
 
     // Added New System for Book ticket:
     app.get('/getSeat/:data', async (req, res) => {
