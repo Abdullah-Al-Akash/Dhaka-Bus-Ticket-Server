@@ -73,9 +73,7 @@ async function run() {
     const contactCollection = client
       .db("Dhaka_Bus_Ticket")
       .collection("contactCollection");
-        const billsCollection = client
-      .db("Dhaka_Bus_Ticket")
-      .collection("billsCollection");
+   
 
     // jwt
     app.post("/jwt", (req, res) => {
@@ -103,9 +101,18 @@ async function run() {
 
 
     // bills for user
-
+app.get('/user-bills',async(req,res)=>{
+    const {email} = req.query;
+try {
+  
+    const tickets =await ticketsCollection.find({email:email}).toArray();
+   res.send(tickets)
+} catch (error) {
+  res.send(error)
+}
+   })
    
- 
+   
 
     // Added New System for Book ticket:
     app.get('/getSeat/:data', async (req, res) => {
@@ -118,12 +125,25 @@ async function run() {
       const getBookedSeat = getAccurateBus?.map(bus => bookedSeatAlready.push(...bus?.bookedSeat))
       res.send(bookedSeatAlready)
     })
-
-    // subscriber 
-    app.post("/subscriber", (req, res) => {
-      const email = req.body;
-      console.log(email);
+    // subscriber get Count
+    app.get("/subscriber-count",async(req,res)=>{
+      const subscriberCount = await newsLetterSubscriber.countDocuments();
+      res.send(subscriberCount);
     })
+
+    // subscriber post
+    app.post("/subscriber", async(req, res) => {
+      try {
+        const email = req.body;
+      const result = await newsLetterSubscriber.insertOne(email);
+      res.send({result})
+      } catch (error) {
+        console.log(error);
+      }
+      
+    })
+
+
 
     // Load All User:
     app.get("/users", async (req, res) => {
