@@ -4,9 +4,6 @@ const cors = require("cors");
 const app = express();
 const jwt = require("jsonwebtoken");
 const port = process.env.PORT || 5000;
-const SSLCommerzPayment = require("sslcommerz-lts");
-const crypto = require("crypto").randomBytes(64).toString("hex");
-// console.log(crypto);
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 // middleware
@@ -14,9 +11,6 @@ app.use(cors());
 app.use(express.json());
 const username = process.env.DB_USER;
 const password = process.env.DB_PASS;
-const store_id = process.env.Store_ID;
-const store_passwd = process.env.Store_Password;
-const is_live = false;
 const uri = `mongodb+srv://${username}:${password}@cluster0.wapucld.mongodb.net/?retryWrites=true&w=majority`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -102,6 +96,18 @@ async function run() {
       }
       next();
     };
+
+    // Added New System for Book ticket:
+    app.get('/getSeat/:data', async (req, res) => {
+      const searchQuery = req.params.data;
+      const splitSearch = searchQuery.split("&&")
+      const [from, to, date, busType, schedule] = [splitSearch[0], splitSearch[1], splitSearch[2], splitSearch[3], splitSearch[4]];
+      const getBus = await ticketsCollection.find({}).toArray();
+      const getAccurateBus = getBus.filter(bus => bus?.date == date && bus?.from === from && bus?.to === to && bus?.busType === busType && bus?.schedule === schedule)
+      const bookedSeatAlready = []
+      const getBookedSeat = getAccurateBus?.map(bus => bookedSeatAlready.push(...bus?.bookedSeat))
+      res.send(bookedSeatAlready)
+    })
 
     // subscriber 
     app.post("/subscriber", (req, res) => {
@@ -198,23 +204,24 @@ async function run() {
       res.send(result);
     });
     // Booked Seat in Bus:
-    app.put("/book-ticket", async (req, res) => {
+    app.post("/book-ticket", async (req, res) => {
       const bookInformation = req.body;
-      const busId = bookInformation.bus_id;
-      const updatedBookedSeat = bookInformation.updateBookedSeat;
-      const filter = { _id: new ObjectId(busId) };
-      const options = { upsert: true };
-      // create a document that sets the plot of the movie
-      const updateDoc = {
-        $set: {
-          bookedSeat: updatedBookedSeat,
-        },
-      };
-      const result = await allBusCollection.updateOne(
-        filter,
-        updateDoc,
-        options
-      );
+      // const busId = bookInformation.bus_id;
+      // const updatedBookedSeat = bookInformation.updateBookedSeat;
+      // const filter = { _id: new ObjectId(busId) };
+      // const options = { upsert: true };
+      // // create a document that sets the plot of the movie
+      // const updateDoc = {
+      //   $set: {
+      //     bookedSeat: updatedBookedSeat,
+      //   },
+      // };
+      // const result = await allBusCollection.updateOne(
+      //   filter,
+      //   updateDoc,
+      //   options
+      // );
+      const result = await ticketsCollection.insertOne(bookInformation);
       res.json(result);
     });
 
@@ -311,7 +318,6 @@ async function run() {
     app.get("/all-feedback", async (req, res) => {
       try {
         const response = await feedbackCollection.find().toArray();
-        console.log(response);
         res.status(200).send({
           result: response,
         });
@@ -322,7 +328,6 @@ async function run() {
     // user-feedback posting
     app.post("/user-feedback", async (req, res) => {
       const feedbackInfo = req.body;
-      // console.log(feedbackInfo)
       try {
         const response = await feedbackCollection.insertOne(feedbackInfo);
         res.send({ result: response });
@@ -333,9 +338,9 @@ async function run() {
     app.get("/admin/:email", async (req, res) => {
       try {
         const email = req.params.email;
-        console.log(email, 290);
+
         const filter = { email: email };
-        console.log(filter, 290);
+
         const result = await userCollection.findOne(filter);
         console.log(result, 290);
         res.send({ role: result?.role });
@@ -343,55 +348,7 @@ async function run() {
         console.log(error);
       }
     });
-    // payment
-    app.post("/order", async (req, res) => {
-      const tran_id = new ObjectId().toString();
-      const order = req.body;
-      console.log(order);
 
-      const data = {
-        total_amount: order.price,
-        currency: "BDT",
-        tran_id: tran_id, // use unique tran_id for each api call
-        success_url: "https://dhaka-bus-ticket-server-two.vercel.app/success",
-        fail_url: "https://dhaka-bus-ticket-server-two.vercel.app/failure",
-        cancel_url: "https://dhaka-bus-ticket-server-two.vercel.app/cancel",
-        ipn_url: "https://dhaka-bus-ticket-server-two.vercel.app/ipn",
-        shipping_method: "Courier",
-        product_name: "Computer.",
-        product_category: "Electronic",
-        product_profile: "general",
-        cus_name: "Customer Name",
-        cus_email: order.email,
-        cus_add1: "Dhaka",
-        cus_add2: "Dhaka",
-        cus_city: "Dhaka",
-        cus_state: "Dhaka",
-        cus_postcode: "1000",
-        cus_country: "Bangladesh",
-        cus_phone: "01711111111",
-        cus_fax: "01711111111",
-        ship_name: "Customer Name",
-        ship_add1: "Dhaka",
-        ship_add2: "Dhaka",
-        ship_city: "Dhaka",
-        ship_state: "Dhaka",
-        ship_postcode: 1000,
-        ship_country: "Bangladesh",
-      };
-      // console.log(data)
-      const sslcz = new SSLCommerzPayment(store_id, store_passwd, is_live);
-      sslcz.init(data).then((apiResponse) => {
-        // Redirect the user to payment gateway
-        let GatewayPageURL = apiResponse.GatewayPageURL;
-        res.send({ url: GatewayPageURL });
-        const finalOrder = {
-          transitionId: tran_id,
-          customerEmail: order.email,
-        };
-        const result = usersOrderCollection.insertOne(finalOrder);
-      });
-    });
     app.post("/success", async (req, res) => {
       const result = await usersOrderCollection.updateOne(
         { tran_id: req.body.tran_id },
