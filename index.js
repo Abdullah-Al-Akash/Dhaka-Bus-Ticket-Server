@@ -122,8 +122,10 @@ app.get('/user-bills',async(req,res)=>{
  // subscriber 
   app.post("/subscriber",async(req,res)=>{
     const email = req.body;
+    console.log(email);
     try {
      const result =  await newsLetterSubscriber.insertOne(email)
+     console.log(result);
      res.send(result);
     } catch (error) {
       console.log(error);
